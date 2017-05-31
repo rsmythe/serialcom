@@ -1,13 +1,14 @@
 import * as serialport from 'serialport';
 import * as repl from 'repl';
 
+
 let serialOptions: serialport.options = {
-  baudRate: 9600,
+  baudRate: 115200,
   rtscts: true,
   parity: 'none',
   stopBits: 1,
   dataBits: 8,
-  parser: serialport.parsers.readline('\r', 'ascii')
+  parser: serialport.parsers.readline('\n', 'ascii')
 }
 
 let port = new serialport('COM7', serialOptions);
@@ -25,84 +26,102 @@ port.on('data', (data: Buffer) => {
     console.log(data.toString('ascii'));
 });
 
-
-function on(addr: string)
+class WiFire
 {
-    let hexAddr = parseInt(addr);
-    if(hexAddr < 0 || hexAddr > 15)
+    public on(addr: string)
     {
-      console.log(`Cannot evaluate ${addr}  Please send between 0x00 and 0xff`)
+        let hexAddr = parseInt(addr);
+        if(hexAddr < 0 || hexAddr > 15)
+        {
+        console.log(`Cannot evaluate ${addr}  Please send between 0x00 and 0xff`)
+        }
+        let buffer = new Buffer(3);
+        buffer[0] = 0xff;
+        buffer[1] = hexAddr;
+        buffer[2] = 0x01;
+
+        console.log(`sending ${buffer.toString('hex')} to serial`);
+
+        port.write(buffer, function(err) {
+            if (err) {
+            return console.log('Error on write: ', err.message);
+            }
+            console.log('message written');
+        });
     }
-    let buffer = new Buffer(3);
-    buffer[0] = 0xff;
-    buffer[1] = hexAddr;
-    buffer[2] = 0x01;
 
-    console.log(`sending ${buffer.toString('hex')} to serial`);
-
-    port.write(buffer, function(err) {
-    if (err) {
-      return console.log('Error on write: ', err.message);
-    }
-    console.log('message written');
-  });
-}
-
-function off(addr: string)
-{
-    let hexAddr = parseInt(addr);
-    if(hexAddr < 0 || hexAddr > 15)
+    public off(addr: string)
     {
-      console.log(`Cannot evaluate ${addr}  Please send between 0x00 and 0xff`)
+        let hexAddr = parseInt(addr);
+        if(hexAddr < 0 || hexAddr > 15)
+        {
+        console.log(`Cannot evaluate ${addr}  Please send between 0x00 and 0xff`)
+        }
+        let buffer = new Buffer(3);
+        buffer[0] = 0xff;
+        buffer[1] = hexAddr;
+        buffer[2] = 0x00;
+
+        console.log(`sending ${buffer.toString('hex')} to serial`);
+
+        port.write(buffer, function(err) {
+            if (err) {
+            return console.log('Error on write: ', err.message);
+            }
+            console.log('message written');
+        });
     }
-    let buffer = new Buffer(3);
-    buffer[0] = 0xff;
-    buffer[1] = hexAddr;
-    buffer[2] = 0x00;
+}
 
-    console.log(`sending ${buffer.toString('hex')} to serial`);
-
-    port.write(buffer, function(err) {
-    if (err) {
-      return console.log('Error on write: ', err.message);
+class XBEE{
+    public send(cmd: string)
+    {
+        port.write(cmd + '\r', (err) => {
+            if(err)
+            console.log(`Error on write: ${err}`);
+        });
+        console.log(`command sent: ${cmd}`);
     }
-    console.log('message written');
-  });
+
+    public init()
+    {
+        port.write('$$$', (err) => {
+            if(err)
+            console.log(`Error on write: ${err}`);
+        });
+        console.log('init sent');
+    }
+
+    public scan()
+    {
+        this.send('scan');
+    }
+
+    public wlan()
+    {
+        this.send('')
+    }
 }
 
-function send(cmd: string)
-{
-  port.write(cmd + '\r', (err) => {
-    if(err)
-      console.log(`Error on write: ${err}`);
-  });
-  console.log('command sent');
-}
+let wifire = new WiFire();
+let xbee = new XBEE();
 
-function init()
-{
-  port.write('$$$', (err) => {
-    if(err)
-      console.log(`Error on write: ${err}`);
-  });
-  console.log('init sent');
-}
-
-function scan()
-{
-  port.write('scan\r', (err) => {
-    if(err)
-      console.log(`Error on write: ${err}`);
-  });
-  console.log('scan sent');
-}
-
-let r: repl.REPLServer = repl.start('$ ');
+let r: repl.REPLServer = repl.start(
+    {
+        prompt: '$ ',
+        // eval: (cmd: string, context: any, filename: string, callback: (err: string, result?: boolean) => any)  => {
+        //     let fn = cmd.slice(0, -1);
+        //     typeof wifire[fn] === 'function' ? wifire[fn]() : xbee.send(fn);
+        //     callback(null);
+        // }
+    });
 
 r.on('exit', () => port.close());
 
-r.context.on = on;
-r.context.off = off;
-r.context.send = send;
-r.context.init = init;
-r.context.scan = scan;
+r.context.on = wifire.on;
+r.context.off = wifire.off;
+r.context.send = xbee.send;
+r.context.init = xbee.init;
+r.context.scan = xbee.scan;
+r.context.wifire = wifire;
+r.context.xbee = xbee;

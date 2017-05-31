@@ -3,12 +3,12 @@ exports.__esModule = true;
 var serialport = require("serialport");
 var repl = require("repl");
 var serialOptions = {
-    baudRate: 9600,
+    baudRate: 115200,
     rtscts: true,
     parity: 'none',
     stopBits: 1,
     dataBits: 8,
-    parser: serialport.parsers.readline('\r', 'ascii')
+    parser: serialport.parsers.readline('\n', 'ascii')
 };
 var port = new serialport('COM7', serialOptions);
 port.on('open', function () {
@@ -21,65 +21,81 @@ port.on('error', function (err) {
 port.on('data', function (data) {
     console.log(data.toString('ascii'));
 });
-function on(addr) {
-    var hexAddr = parseInt(addr);
-    if (hexAddr < 0 || hexAddr > 15) {
-        console.log("Cannot evaluate " + addr + "  Please send between 0x00 and 0xff");
+var WiFire = (function () {
+    function WiFire() {
     }
-    var buffer = new Buffer(3);
-    buffer[0] = 0xff;
-    buffer[1] = hexAddr;
-    buffer[2] = 0x01;
-    console.log("sending " + buffer.toString('hex') + " to serial");
-    port.write(buffer, function (err) {
-        if (err) {
-            return console.log('Error on write: ', err.message);
+    WiFire.prototype.on = function (addr) {
+        var hexAddr = parseInt(addr);
+        if (hexAddr < 0 || hexAddr > 15) {
+            console.log("Cannot evaluate " + addr + "  Please send between 0x00 and 0xff");
         }
-        console.log('message written');
-    });
-}
-function off(addr) {
-    var hexAddr = parseInt(addr);
-    if (hexAddr < 0 || hexAddr > 15) {
-        console.log("Cannot evaluate " + addr + "  Please send between 0x00 and 0xff");
+        var buffer = new Buffer(3);
+        buffer[0] = 0xff;
+        buffer[1] = hexAddr;
+        buffer[2] = 0x01;
+        console.log("sending " + buffer.toString('hex') + " to serial");
+        port.write(buffer, function (err) {
+            if (err) {
+                return console.log('Error on write: ', err.message);
+            }
+            console.log('message written');
+        });
+    };
+    WiFire.prototype.off = function (addr) {
+        var hexAddr = parseInt(addr);
+        if (hexAddr < 0 || hexAddr > 15) {
+            console.log("Cannot evaluate " + addr + "  Please send between 0x00 and 0xff");
+        }
+        var buffer = new Buffer(3);
+        buffer[0] = 0xff;
+        buffer[1] = hexAddr;
+        buffer[2] = 0x00;
+        console.log("sending " + buffer.toString('hex') + " to serial");
+        port.write(buffer, function (err) {
+            if (err) {
+                return console.log('Error on write: ', err.message);
+            }
+            console.log('message written');
+        });
+    };
+    return WiFire;
+}());
+var XBEE = (function () {
+    function XBEE() {
     }
-    var buffer = new Buffer(3);
-    buffer[0] = 0xff;
-    buffer[1] = hexAddr;
-    buffer[2] = 0x00;
-    console.log("sending " + buffer.toString('hex') + " to serial");
-    port.write(buffer, function (err) {
-        if (err) {
-            return console.log('Error on write: ', err.message);
-        }
-        console.log('message written');
-    });
-}
-function send(cmd) {
-    port.write(cmd + '\r', function (err) {
-        if (err)
-            console.log("Error on write: " + err);
-    });
-    console.log('command sent');
-}
-function init() {
-    port.write('$$$', function (err) {
-        if (err)
-            console.log("Error on write: " + err);
-    });
-    console.log('init sent');
-}
-function scan() {
-    port.write('scan\r', function (err) {
-        if (err)
-            console.log("Error on write: " + err);
-    });
-    console.log('scan sent');
-}
-var r = repl.start('$ ');
+    XBEE.prototype.send = function (cmd) {
+        port.write(cmd + '\r', function (err) {
+            if (err)
+                console.log("Error on write: " + err);
+        });
+        console.log("command sent: " + cmd);
+    };
+    XBEE.prototype.init = function () {
+        port.write('$$$', function (err) {
+            if (err)
+                console.log("Error on write: " + err);
+        });
+        console.log('init sent');
+    };
+    XBEE.prototype.scan = function () {
+        this.send('scan');
+    };
+    XBEE.prototype.wlan = function () {
+        this.send('');
+    };
+    return XBEE;
+}());
+var wifire = new WiFire();
+var xbee = new XBEE();
+var r = repl.start({
+    prompt: '$ '
+});
 r.on('exit', function () { return port.close(); });
-r.context.on = on;
-r.context.off = off;
-r.context.send = send;
-r.context.init = init;
-r.context.scan = scan;
+r.context.on = wifire.on;
+r.context.off = wifire.off;
+r.context.send = xbee.send;
+r.context.init = xbee.init;
+r.context.scan = xbee.scan;
+r.context.wifire = wifire;
+r.context.xbee = xbee;
+//# sourceMappingURL=serialcom.js.map
