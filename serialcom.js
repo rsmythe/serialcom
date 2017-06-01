@@ -8,7 +8,7 @@ var serialOptions = {
     parity: 'none',
     stopBits: 1,
     dataBits: 8,
-    parser: serialport.parsers.readline('\n', 'ascii')
+    parser: serialport.parsers.byteLength(8) //.readline('\n', 'ascii')
 };
 var port = new serialport('COM7', serialOptions);
 port.on('open', function () {
@@ -19,7 +19,7 @@ port.on('error', function (err) {
     console.log('Error: ', err.message);
 });
 port.on('data', function (data) {
-    console.log(data.toString('ascii'));
+    console.log(data.toString('hex'));
 });
 var WiFire = (function () {
     function WiFire() {
@@ -88,14 +88,19 @@ var XBEE = (function () {
 var wifire = new WiFire();
 var xbee = new XBEE();
 var r = repl.start({
-    prompt: '$ '
+    prompt: '$ ',
+    eval: function (cmd, context, filename, callback) {
+        var fn = cmd.slice(0, -1);
+        typeof wifire[fn] === 'function' ? wifire[fn]() : xbee.send(fn);
+        callback(null);
+    }
 });
 r.on('exit', function () { return port.close(); });
-r.context.on = wifire.on;
-r.context.off = wifire.off;
-r.context.send = xbee.send;
-r.context.init = xbee.init;
-r.context.scan = xbee.scan;
-r.context.wifire = wifire;
-r.context.xbee = xbee;
+// r.context.on = wifire.on;
+// r.context.off = wifire.off;
+// r.context.send = xbee.send;
+// r.context.init = xbee.init;
+// r.context.scan = xbee.scan;
+// r.context.wifire = wifire;
+// r.context.xbee = xbee; 
 //# sourceMappingURL=serialcom.js.map

@@ -8,7 +8,7 @@ let serialOptions: serialport.options = {
   parity: 'none',
   stopBits: 1,
   dataBits: 8,
-  parser: serialport.parsers.readline('\n', 'ascii')
+  parser: serialport.parsers.byteLength(8) //.readline('\n', 'ascii')
 }
 
 let port = new serialport('COM7', serialOptions);
@@ -23,7 +23,7 @@ port.on('error', function(err) {
 });
 
 port.on('data', (data: Buffer) => {
-    console.log(data.toString('ascii'));
+    console.log(data.toString('hex'));
 });
 
 class WiFire
@@ -109,19 +109,19 @@ let xbee = new XBEE();
 let r: repl.REPLServer = repl.start(
     {
         prompt: '$ ',
-        // eval: (cmd: string, context: any, filename: string, callback: (err: string, result?: boolean) => any)  => {
-        //     let fn = cmd.slice(0, -1);
-        //     typeof wifire[fn] === 'function' ? wifire[fn]() : xbee.send(fn);
-        //     callback(null);
-        // }
+        eval: (cmd: string, context: any, filename: string, callback: (err: string, result?: boolean) => any)  => {
+            let fn = cmd.slice(0, -1);
+            typeof wifire[fn] === 'function' ? wifire[fn]() : xbee.send(fn);
+            callback(null);
+        }
     });
 
 r.on('exit', () => port.close());
 
-r.context.on = wifire.on;
-r.context.off = wifire.off;
-r.context.send = xbee.send;
-r.context.init = xbee.init;
-r.context.scan = xbee.scan;
-r.context.wifire = wifire;
-r.context.xbee = xbee;
+// r.context.on = wifire.on;
+// r.context.off = wifire.off;
+// r.context.send = xbee.send;
+// r.context.init = xbee.init;
+// r.context.scan = xbee.scan;
+// r.context.wifire = wifire;
+// r.context.xbee = xbee;
